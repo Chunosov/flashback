@@ -33,14 +33,12 @@ def has_jpg_counterpart(file_path):
     
     return False
 
-def find_media_files(root_dir, photos_file='photos.txt', non_photos_file=None):
-    """Find both JPG files and non-JPG media files without JPG counterparts."""
-    jpg_files = []
-    non_jpg_files = []
+def process_directory(directory, jpg_files, non_jpg_files, non_photos_file=None):
+    """Process a single directory and update the file lists."""
     files_processed = 0
     
     # Walk through directory recursively
-    for dirpath, dirnames, filenames in os.walk(root_dir):
+    for dirpath, dirnames, filenames in os.walk(directory):
         for filename in filenames:
             # Get file extension in lowercase
             ext = os.path.splitext(filename)[1].lower()
@@ -57,13 +55,38 @@ def find_media_files(root_dir, photos_file='photos.txt', non_photos_file=None):
             
             files_processed += 1
             if files_processed % PROGRESS_INTERVAL == 0:
-                print(f"Processed {files_processed} files...")
-                # Save intermediate results
-                save_results(jpg_files, photos_file)
-                if non_photos_file:
-                    save_results(non_jpg_files, non_photos_file)
+                print(f"Processed {files_processed} files in {directory}...")
     
-    return jpg_files, non_jpg_files
+    print(f"Total processed {files_processed} files in {directory}...")
+    return files_processed
+
+def find_media_files(root_path, photos_file='photos.txt', non_photos_file=None):
+    """Find both JPG files and non-JPG media files without JPG counterparts."""
+    jpg_files = []
+    non_jpg_files = []
+    total_files_processed = 0
+    
+    if os.path.isfile(root_path):
+        # If root_path is a file, read directories from it
+        with open(root_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                    
+                if os.path.exists(line) and os.path.isdir(line):
+                    print(f"\nProcessing directory: {line}")
+                    files_processed = process_directory(line, jpg_files, non_jpg_files, non_photos_file)
+                    total_files_processed += files_processed
+                else:
+                    print(f"Warning: '{line}' is not a valid directory, skipping", file=sys.stderr)
+    else:
+        # Process single directory
+        print(f"\nProcessing directory: {root_path}")
+        total_files_processed = process_directory(root_path, jpg_files, non_jpg_files, non_photos_file)
+    
+    return jpg_files, non_jpg_files, total_files_processed
 
 def save_results(file_list, target_file):
     """Save the list of files to the target file."""
@@ -75,7 +98,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Find both JPG files and non-JPG media files in a directory tree.'
     )
-    parser.add_argument('root_path', help='Root directory to scan for media files')
+    parser.add_argument('root_path', help='Directory to scan for media files, or a file containing a list of directories (one per line, # for comments)')
     parser.add_argument('output_file', nargs='?', default='photos.txt',
                        help='Target file to save JPG files list (default: photos.txt)')
     parser.add_argument('--non-photos',
@@ -84,22 +107,18 @@ def main():
     args = parser.parse_args()
     
     if not os.path.exists(args.root_path):
-        print(f"Error: Root path '{args.root_path}' does not exist", file=sys.stderr)
-        sys.exit(1)
-    
-    if not os.path.isdir(args.root_path):
-        print(f"Error: '{args.root_path}' is not a directory", file=sys.stderr)
+        print(f"Error: Path '{args.root_path}' does not exist", file=sys.stderr)
         sys.exit(1)
     
     # Find all media files
-    jpg_files, non_jpg_files = find_media_files(args.root_path, args.output_file, args.non_photos)
+    jpg_files, non_jpg_files, total_processed = find_media_files(args.root_path, args.output_file, args.non_photos)
     
     # Save final results
     save_results(jpg_files, args.output_file)
     if args.non_photos:
         save_results(non_jpg_files, args.non_photos)
     
-    print(f"\nCompleted!")
+    print(f"\nCompleted! Total files processed: {total_processed}")
     print(f"Total JPG files found: {len(jpg_files)}")
     if args.non_photos:
         print(f"Total non-JPG media files found: {len(non_jpg_files)}")

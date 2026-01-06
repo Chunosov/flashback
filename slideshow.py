@@ -637,7 +637,7 @@ class Slideshow:
                     if image:
                         # Store in cache
                         self.image_cache[index] = image
-                        print(f"Loaded in background {self.image_paths[index]}")
+                        print(f"Preloaded {self.image_paths[index]}")
 
                     # Remove old entries if cache is too large
                     if len(self.image_cache) > self.cache_size:
@@ -657,6 +657,7 @@ class Slideshow:
                 image = self.load_image_sync(self.current_index)
                 if image is None:
                     raise Exception("Failed to load image")
+            print(f"Shown {self.image_paths[self.current_index]}")
 
             # Update parent directory position when showing new image
             self.update_parent_dir_position()

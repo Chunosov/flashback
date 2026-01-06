@@ -13,7 +13,9 @@ def get_image_list(key):
     """Load and return the list of images for a slideshow"""
     if key not in slideshows:
         try:
-            photos_file = key + '.txt'
+            photos_file = key
+            if not photos_file.endswith('.txt'):
+                photos_file = key + '.txt'
             if not os.path.exists(photos_file):
                 abort(404, description=f"Slideshow '{key}' not found")
             with open(photos_file, 'r') as f:
@@ -22,7 +24,7 @@ def get_image_list(key):
                 print(f"Slideshow '{key}' loaded, image paths: {len(paths)}")
         except Exception as e:
             print(f"Error loading image list '{photos_file}': {e}")
-            abort(500, description=f"Error loading image list for slideshow '{key}'")
+            abort(500, description=f"Error loading image list for slideshow '{key}': {e}")
     return jsonify(slideshows[key])
 
 @app.route('/api/slideshow/<key>/image/<image_index>')
@@ -53,8 +55,8 @@ def get_image(key, image_index):
 
 def main():
     parser = argparse.ArgumentParser(description='Slideshow server')
-    parser.add_argument('--host', default='127.0.0.1',
-                      help='Host to bind to (default: 127.0.0.1)')
+    parser.add_argument('--host', default='0.0.0.0',
+                      help='Host to bind to (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=5000,
                       help='Port to listen on (default: 5000)')
     parser.add_argument('--debug', action='store_true',
