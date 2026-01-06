@@ -7,6 +7,9 @@ from datetime import datetime
 import threading
 from queue import Queue
 import argparse
+import requests
+import base64
+from io import BytesIO
 
 FILENAME_PANEL_HEIGHT = 150
 FILENAME_PANEL_MARGIN = 20
@@ -20,11 +23,16 @@ CONFIG_DLG_HEIGHT = 300
 DIRNAME_PANEL_MARGIN = 20
 DIRNAME_PANEL_PADDING = 15
 DIRNAME_PANEL_HEIGHT = 60
+MAX_ERROR_COUNT = 5
 
 class Slideshow:
-    def __init__(self, root, photos_file='photos.txt'):
+    def __init__(self, root, photos_file, server_url):
         self.is_paused = False
         self.is_fullscreen = False
+        self.photos_file = photos_file
+        self.server_url = server_url
+        self.error_count = 0
+        self.current_year = None
         
         # Image cache dictionary
         self.image_cache = {}
@@ -144,23 +152,42 @@ class Slideshow:
         self.button_visible = False
         self.label_visible = False
         
-        
         # Load image paths
-        print(f"Loading image paths from {photos_file}...")
-        with open(photos_file, 'r') as f:
-            self.image_paths = f.read().splitlines()
-        print(f"Loaded image paths: {len(self.image_paths)}")
-        
-        # Randomly shuffle the paths
-        random.shuffle(self.image_paths)
-        
+        self.load_file_list()
         self.current_index = 0
         
         # Start the slideshow
         self.show_current_image()
         # Start automatic progression
         self.timer_id = self.root.after(self.interval, self.show_next_image)
-    
+
+    def load_file_list(self):
+        image_paths = []
+        self.image_paths = []
+        print(f"Loading image paths from {self.photos_file}...")
+        if self.server_url:
+            try:
+                response = requests.get(f"{self.server_url}/api/slideshow/{self.photos_file}/list")
+                if response.ok:
+                    image_paths = response.json()
+                else:
+                    raise Exception(f"Failed to get image list from server: {response.status_code}")
+            except Exception as e:
+                raise Exception(f"Failed to connect to server: {e}")
+        else:
+            with open(self.photos_file, 'r') as f:
+                image_paths = f.read().splitlines()
+
+        # Randomize images and store paths in the same random order
+        # In remote mode images are loaded by indexes but 
+        # paths are still required to display image name
+        
+        self.image_indexes = [*range(len(image_paths))]
+        random.shuffle(self.image_indexes)
+        for index in self.image_indexes:
+            self.image_paths.append(image_paths[index])
+        print(f"Loaded image paths: {len(self.image_paths)}")
+
     def create_toolbutton(self, text, command):
         button = tk.Button(self.button_frame, text=text, command=command,
                             bg='black', fg='white',
@@ -249,12 +276,31 @@ class Slideshow:
     def load_image_sync(self, index):
         """Load image synchronously and return it"""
         try:
-            image = Image.open(self.image_paths[index])
+            if self.server_url:
+                origin_index = self.image_indexes[index]
+                url = f"{self.server_url}/api/slideshow/{self.photos_file}/image/{origin_index}"
+                try:
+                    response = requests.get(url, timeout=10)  # 10 second timeout
+                    if response.ok:
+                        image = Image.open(BytesIO(response.content))
+                    else:
+                        raise Exception(f"Server returned status code: {response.status_code}")
+                except requests.exceptions.RequestException as e:
+                    raise Exception(f"Network error: {e}")
+            else:
+                image = Image.open(self.image_paths[index])
+            
             image = self.apply_exif_orientation(image)
+            self.current_year = self.extract_year_from_exif(image)
             self.image_cache[index] = image
+            self.error_count = 0
             return image
         except Exception as e:
             print(f"Error loading image {self.image_paths[index]}: {e}")
+            self.error_count += 1
+            if self.error_count == MAX_ERROR_COUNT:
+                print("Too many errors, exiting")
+                exit(1)
             return None
 
     def show_previous_image(self):
@@ -473,7 +519,7 @@ class Slideshow:
                 return str(datetime.fromtimestamp(ctime).year)
         except:
             return ""  # Return empty string if all methods fail
-    
+
     def on_window_configure(self, event):
         # Only save window size if we're in windowed mode and the window was actually resized
         if not self.is_fullscreen and event.widget == self.root:
@@ -492,7 +538,7 @@ class Slideshow:
         # Update parent directory text
         current_path = self.image_paths[self.current_index]
         parent_dir = os.path.basename(os.path.dirname(current_path))
-        year = self.get_image_year(current_path)
+        year = self.current_year
         
         # Format text with year if available
         display_text = f"{parent_dir} ({year})" if year else parent_dir
@@ -546,6 +592,33 @@ class Slideshow:
         except Exception as e:
             print(f"Error applying EXIF orientation: {e}")
             return image
+    
+    def extract_year_from_exif(self, image):
+        """Try to get year from EXIF data"""
+        try:
+            exif = image.getexif()
+            if not exif:
+                return None
+
+            # List of EXIF tags that might contain date information
+            date_tags = ['DateTime', 'DateTimeOriginal', 'DateTimeDigitized', 'CreateDate']
+            
+            # First try standard EXIF tags
+            for tag_id in ExifTags.TAGS:
+                tag_name = ExifTags.TAGS[tag_id]
+                if tag_name in date_tags and tag_id in exif:
+                    # EXIF DateTime format: "YYYY:MM:DD HH:MM:SS"
+                    return exif[tag_id][:4]
+            
+            # Then try extended EXIF tags
+            exif_ifd = exif.get_ifd(0x8769)  # ExifIFD
+            if exif_ifd:
+                for tag_id in exif_ifd:
+                    if ExifTags.TAGS.get(tag_id) in date_tags:
+                        return exif_ifd[tag_id][:4]
+        except:
+            print(f"Error getting year from EXIF: {e}")
+            return None
 
     def preload_next_image(self):
         """Queue the next image for background loading"""
@@ -560,12 +633,12 @@ class Slideshow:
             if index not in self.image_cache:
                 try:
                     # Load and process image
-                    image = Image.open(self.image_paths[index])
-                    image = self.apply_exif_orientation(image)
-                    
-                    # Store in cache
-                    self.image_cache[index] = image
-                    
+                    image = self.load_image_sync(index)
+                    if image:
+                        # Store in cache
+                        self.image_cache[index] = image
+                        print(f"Loaded in background {self.image_paths[index]}")
+
                     # Remove old entries if cache is too large
                     if len(self.image_cache) > self.cache_size:
                         oldest = min(k for k in self.image_cache.keys() if k != self.current_index)
@@ -581,9 +654,9 @@ class Slideshow:
                 image = self.image_cache[self.current_index]
             else:
                 # Load and process image if not in cache
-                image = Image.open(self.image_paths[self.current_index])
-                image = self.apply_exif_orientation(image)
-                self.image_cache[self.current_index] = image
+                image = self.load_image_sync(self.current_index)
+                if image is None:
+                    raise Exception("Failed to load image")
 
             # Update parent directory position when showing new image
             self.update_parent_dir_position()
@@ -650,8 +723,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Photo slideshow application')
     parser.add_argument('photos_file', nargs='?', default='photos.txt',
                       help='Path to the file containing photo paths (default: photos.txt)')
+    parser.add_argument('--server', help='Server URL for remote slideshow mode')
     args = parser.parse_args()
 
     root = tk.Tk()
-    app = Slideshow(root, photos_file=args.photos_file)
+    app = Slideshow(root, photos_file=args.photos_file, server_url=args.server)
     root.mainloop()

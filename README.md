@@ -20,7 +20,7 @@ On other systems:
 - macOS: `brew install libomp`
 - Windows: No additional setup needed (included with binary wheels)
 
-## Features
+## Main features
 
 ### Image listing
 
@@ -52,7 +52,24 @@ python slideshow.py
 
 # Use custom image list file
 python slideshow.py my_photos.txt
+
+# Remote slideshow mode (fetch images from server)
+python slideshow.py my_album --server http://example.com
 ```
+
+Server Mode:
+When using the `--server` option, the slideshow operates in remote mode:
+1. The image list file name is used as a key to identify the slideshow on the server
+2. Images are fetched on-demand from the server API
+
+Server API Endpoints:
+- `GET /api/slideshow/{key}/list`
+  - Returns a JSON array of image paths for the slideshow
+  - Example response: `["photos/2023/img1.jpg", "photos/2023/img2.jpg"]`
+- `GET /api/slideshow/{key}/image/{image_id}`
+  - Returns the binary image data
+  - image_id is the base64-encoded full image path
+  - Returns appropriate content-type header for the image
 
 Features:
 - Automatic image progression with configurable interval
@@ -77,6 +94,46 @@ Configuration:
   - Slideshow interval
   - Window size
   - Fullscreen state
+
+### Slideshow Server
+
+The project includes a Flask server that can serve slideshows remotely. This allows running the slideshow on one machine while serving images from another.
+
+```bash
+# Basic usage (serve a single slideshow)
+python slideshow_server.py photos.txt
+
+# Serve multiple slideshows
+python slideshow_server.py album1.txt album2.txt vacation.txt
+
+# Specify host and port
+python slideshow_server.py --host 0.0.0.0 --port 8080 photos.txt
+
+# Run in debug mode
+python slideshow_server.py --debug photos.txt
+```
+
+Server Features:
+- Serve multiple slideshows simultaneously
+- Each slideshow is identified by its file name (without extension)
+- Secure path handling to prevent directory traversal
+- Automatic content-type detection for images
+- Error handling with appropriate HTTP status codes
+
+Example Usage:
+1. Start the server:
+   ```bash
+   python slideshow_server.py --host 0.0.0.0 --port 8080 my_photos.txt
+   ```
+
+2. Run the slideshow client:
+   ```bash
+   python slideshow.py my_photos --server http://server:8080
+   ```
+
+The server will use the image list file's parent directory as the base directory for serving images, ensuring that only files within that directory tree can be accessed.
+
+## Additional features
 
 ### Image Upscaling
 The project includes a wrapper for Real-ESRGAN image upscaling, supporting:
@@ -147,3 +204,4 @@ python convert_non_images.py custom_list.txt -o frames_output -u
 - `convert_non_images.py` - Convert non-image files to frames
 - `prepare.py` - Media file discovery utility (finds both photos and non-photo media files)
 - `slideshow.py` - Image slideshow functionality
+- `slideshow_server.py` - Flask server for remote slideshow functionality

@@ -3,3 +3,5 @@ realesrgan-ncnn-py>=2.0.0
 pillow>=11.2.1
 numpy>=2.2.5
 scikit-image>=0.18.0
+requests>=2.31.0
+flask>=3.0.0
