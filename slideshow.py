@@ -69,8 +69,8 @@ class Slideshow:
         self.root.bind('<Escape>', lambda e: self.root.quit())
         # Bind F11 key to toggle fullscreen
         self.root.bind('<F11>', lambda e: self.toggle_fullscreen())
-        # Bind Page Up key to previous image
-        self.root.bind('<Prior>', lambda e: self.show_previous_image())
+        # Bind Backspace key to previous image
+        self.root.bind('<BackSpace>', lambda e: self.show_previous_image())
         # Bind F2 key to toggle pause
         self.root.bind('<F2>', lambda e: self.toggle_pause())
 
