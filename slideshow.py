@@ -71,8 +71,8 @@ class Slideshow:
         self.root.bind('<F11>', lambda e: self.toggle_fullscreen())
         # Bind Backspace key to previous image
         self.root.bind('<BackSpace>', lambda e: self.show_previous_image())
-        # Bind F2 key to toggle pause
-        self.root.bind('<F2>', lambda e: self.toggle_pause())
+        # Bind Space key to toggle pause
+        self.root.bind('<space>', lambda e: self.toggle_pause())
 
         # Create main frame for images
         self.main_frame = tk.Frame(root, bg='black')
