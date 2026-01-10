@@ -7,7 +7,15 @@ Take a shot. Take a shot. Repeat for tens of years. Point
 Install Python dependencies using:
 
 ```bash
+# All dependicies are required only for video and image preprocessing
 pip install -r requirements.txt
+
+# Install only part of dependencies required for running slideshow server
+pip install -r requirements_server.txt
+
+# Install only part of dependencies required 
+# for running prepared slideshow (either localy or via server)
+pip install -r requirements_client.txt
 ```
 
 On Linux (Ubuntu/Debian), install required system libraries:
@@ -31,10 +39,11 @@ Prepare a list of files that will be displayed in slideshow:
 python prepare.py "/path/to/directory"
 
 # Specify custom output files
-python prepare.py "/path/to/directory" --photos my_photos.txt --non-photos my_non_photos.txt
+python prepare.py "/path/to/directory" my_photos.txt --non-photos my_non_photos.txt
 
-# Example with photo album directory
-python prepare.py "/media/nikolay/Album/Photo/Фотоальбомы/Фотоальбом 1/"
+# Specify several input dirs via input text file
+# one directory per line, use # for comments to skip particular directories
+python prepare.py new_year_dirs.txt new_year.txt
 ```
 
 The script will:
@@ -82,8 +91,10 @@ Features:
   - Top-right: Parent directory and photo year display
 
 Controls:
-- F11: Toggle fullscreen mode
-- ESC: Exit slideshow
+- `F11`: Toggle fullscreen mode
+- `ESC`: Exit slideshow
+- `Space`: Pasue/Resume slideshow
+- `Backspace`: Show the previous image
 - Mouse hover top edge: Show control toolbar
 - Mouse hover bottom-right: Show file details
 - Settings dialog: Configure slideshow interval (1-60 seconds)
@@ -100,42 +111,35 @@ Configuration:
 The project includes a Flask server that can serve slideshows remotely. This allows running the slideshow on one machine while serving images from another.
 
 ```bash
-# Basic usage (serve a single slideshow)
-python slideshow_server.py photos.txt
+# Basic usage
+python server.py
 
-# Serve multiple slideshows
-python slideshow_server.py album1.txt album2.txt vacation.txt
-
-# Specify host and port
-python slideshow_server.py --host 0.0.0.0 --port 8080 photos.txt
+# Run server on a dedicated port
+python server.py --port 8080
 
 # Run in debug mode
-python slideshow_server.py --debug photos.txt
+python server.py --debug
+
+# Run the slideshow client
+python slideshow.py my_photos --server http://192.168.1.98:8080
 ```
 
 Server Features:
 - Serve multiple slideshows simultaneously
 - Each slideshow is identified by its file name (without extension)
-- Secure path handling to prevent directory traversal
 - Automatic content-type detection for images
 - Error handling with appropriate HTTP status codes
 
-Example Usage:
-1. Start the server:
-   ```bash
-   python slideshow_server.py --host 0.0.0.0 --port 8080 my_photos.txt
-   ```
+## Image preprocessing
 
-2. Run the slideshow client:
-   ```bash
-   python slideshow.py my_photos --server http://server:8080
-   ```
+Install all dependencies to do image preprocessing:
 
-The server will use the image list file's parent directory as the base directory for serving images, ensuring that only files within that directory tree can be accessed.
-
-## Additional features
+```bash
+pip install -r requirements.txt
+```
 
 ### Image Upscaling
+
 The project includes a wrapper for Real-ESRGAN image upscaling, supporting:
 - Single image upscaling
 - Batch directory processing
@@ -160,6 +164,7 @@ python upscale.py input.jpg -s 2
 ```
 
 ### Video Frame Extraction
+
 Extract frames from video files at specified intervals. Optionally upscale frames that are below FullHD (1920x1080) resolution:
 
 ```bash
@@ -177,6 +182,7 @@ python video_to_frames.py video.mp4 -i 5 --upscale -o frames_directory
 ```
 
 ### Batch Video Processing
+
 Convert multiple video files to frames using a list file (supports .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm):
 
 ```bash
@@ -191,17 +197,9 @@ python convert_non_images.py -o all_frames --upscale
 
 # Process custom list with upscaling
 python convert_non_images.py custom_list.txt -o frames_output -u
-
-# The script will:
-# 1. Read video paths from the input file
-# 2. Create subdirectories in the output directory matching source video locations
-# 3. Extract frames from each video using video_to_frames.py
 ```
 
-## Project Structure
-- `upscale.py` - Real-ESRGAN image upscaling wrapper
-- `video_to_frames.py` - Video frame extraction utility
-- `convert_non_images.py` - Convert non-image files to frames
-- `prepare.py` - Media file discovery utility (finds both photos and non-photo media files)
-- `slideshow.py` - Image slideshow functionality
-- `slideshow_server.py` - Flask server for remote slideshow functionality
+The script will:
+1. Read video paths from the input file
+2. Create subdirectories in the output directory matching source video locations
+3. Extract frames from each video using `video_to_frames.py`
