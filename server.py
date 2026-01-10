@@ -2,6 +2,42 @@ from flask import Flask, jsonify, send_file, abort
 import os
 import mimetypes
 import argparse
+from PIL import Image, ExifTags
+from datetime import datetime
+
+def get_image_date(image_path):
+    """Extract date from image EXIF data or file modification time"""
+    try:
+        # Try EXIF first
+        with Image.open(image_path) as img:
+            exif = img.getexif()
+            if exif:
+                for tag_id in ExifTags.TAGS:
+                    tag_name = ExifTags.TAGS[tag_id]
+                    if tag_name in ['DateTime', 'DateTimeOriginal', 'DateTimeDigitized'] and tag_id in exif:
+                        try:
+                            return datetime.strptime(exif[tag_id], '%Y:%m:%d %H:%M:%S')
+                        except:
+                            pass
+                            
+                # Try extended EXIF
+                try:
+                    exif_ifd = exif.get_ifd(0x8769)
+                    if exif_ifd:
+                        for tag_id in exif_ifd:
+                            if ExifTags.TAGS.get(tag_id) in ['DateTime', 'DateTimeOriginal', 'DateTimeDigitized']:
+                                try:
+                                    return datetime.strptime(exif_ifd[tag_id], '%Y:%m:%d %H:%M:%S')
+                                except:
+                                    pass
+                except:
+                    pass
+        
+        # Fallback to file modification time
+        return datetime.fromtimestamp(os.path.getmtime(image_path))
+    except:
+        # If all fails, return a very old date so the file appears at the start
+        return datetime.min
 
 app = Flask(__name__)
 
@@ -20,6 +56,8 @@ def get_image_list(key):
                 abort(404, description=f"Slideshow '{key}' not found")
             with open(photos_file, 'r') as f:
                 paths = f.read().splitlines()
+                # Sort paths by image date
+                paths.sort(key=lambda path: get_image_date(path))
                 slideshows[key] = paths
                 print(f"Slideshow '{key}' loaded, image paths: {len(paths)}")
         except Exception as e:
