@@ -11,6 +11,8 @@ import requests
 import base64
 from io import BytesIO
 
+from utils import ensure_ext, DEF_EXT
+
 FILENAME_PANEL_HEIGHT = 150
 FILENAME_PANEL_MARGIN = 20
 FILENAME_PANEL_PADDING = 15
@@ -711,7 +713,7 @@ class Slideshow:
             # Create bad images file on first error if it doesn't exist
             if not self.bad_images_file:
                 timestamp = self.start_timestamp.strftime("%Y%m%d_%H%M%S")
-                self.bad_images_file = f"bad_images_{timestamp}.txt"
+                self.bad_images_file = f"bad_images_{timestamp}.{DEF_EXT}"
                 with open(self.bad_images_file, 'w') as f:
                     f.write("# Corrupted images log\n")
                     f.write(f"# Created: {self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
@@ -726,11 +728,12 @@ class Slideshow:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Photo slideshow application')
-    parser.add_argument('photos_file', nargs='?', default='photos.txt',
-                      help='Path to the file containing photo paths (default: photos.txt)')
+    parser.add_argument('photos_file', nargs='?', default=f'photos.{DEF_EXT}',
+                      help=f'Path to the file containing photo paths (default: photos.{DEF_EXT})')
     parser.add_argument('--server', help='Server URL for remote slideshow mode')
     args = parser.parse_args()
 
     root = tk.Tk()
-    app = Slideshow(root, photos_file=args.photos_file, server_url=args.server)
+    photos_file = ensure_ext(args.photos_file)
+    app = Slideshow(root, photos_file=photos_file, server_url=args.server)
     root.mainloop()

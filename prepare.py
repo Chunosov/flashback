@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 
+from utils import ensure_ext, DEF_EXT
+
 # Configure how often to report progress and save files
 PROGRESS_INTERVAL = 100
 
@@ -33,7 +35,7 @@ def has_jpg_counterpart(file_path):
     
     return False
 
-def process_directory(directory, jpg_files, non_jpg_files, non_photos_file=None):
+def process_directory(directory, jpg_files, non_jpg_files, non_photos_file):
     """Process a single directory and update the file lists."""
     files_processed = 0
     
@@ -60,7 +62,7 @@ def process_directory(directory, jpg_files, non_jpg_files, non_photos_file=None)
     print(f"Total processed {files_processed} files in {directory}...")
     return files_processed
 
-def find_media_files(root_path, photos_file='photos.txt', non_photos_file=None):
+def find_media_files(root_path, photos_file, non_photos_file):
     """Find both JPG files and non-JPG media files without JPG counterparts."""
     jpg_files = []
     non_jpg_files = []
@@ -98,9 +100,10 @@ def main():
     parser = argparse.ArgumentParser(
         description='Find both JPG files and non-JPG media files in a directory tree.'
     )
-    parser.add_argument('root_path', help='Directory to scan for media files, or a file containing a list of directories (one per line, # for comments)')
-    parser.add_argument('output_file', nargs='?', default='photos.txt',
-                       help='Target file to save JPG files list (default: photos.txt)')
+    parser.add_argument('root_path', help='Directory to scan for media files, ' +
+        'or a file containing a list of directories (one per line, # for comments)')
+    parser.add_argument('output_file', nargs='?', default=f'photos.{DEF_EXT}',
+                       help=f'Target file to save JPG files list (default: photos.{DEF_EXT})')
     parser.add_argument('--non-photos',
                        help='Optional: Target file to save non-JPG media files list')
     
@@ -111,19 +114,21 @@ def main():
         sys.exit(1)
     
     # Find all media files
-    jpg_files, non_jpg_files, total_processed = find_media_files(args.root_path, args.output_file, args.non_photos)
+    output_file = ensure_ext(args.output_file)
+    non_photos_file = ensure_ext(args.non_photos)
+    jpg_files, non_jpg_files, total_processed = find_media_files(args.root_path, output_file, non_photos_file)
     
     # Save final results
-    save_results(jpg_files, args.output_file)
-    if args.non_photos:
-        save_results(non_jpg_files, args.non_photos)
+    save_results(jpg_files, output_file)
+    if non_photos_file:
+        save_results(non_jpg_files, non_photos_file)
     
     print(f"\nCompleted! Total files processed: {total_processed}")
     print(f"Total JPG files found: {len(jpg_files)}")
-    if args.non_photos:
+    if non_photos_file:
         print(f"Total non-JPG media files found: {len(non_jpg_files)}")
-        print(f"Non-JPG media files saved to: {args.non_photos}")
-    print(f"JPG files saved to: {args.output_file}")
+        print(f"Non-JPG media files saved to: {non_photos_file}")
+    print(f"JPG files saved to: {output_file}")
 
 if __name__ == "__main__":
     main()

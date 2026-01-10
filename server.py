@@ -5,6 +5,8 @@ import argparse
 from PIL import Image, ExifTags
 from datetime import datetime
 
+from utils import ensure_ext
+
 def get_image_date(image_path):
     """Extract date from image EXIF data or file modification time"""
     try:
@@ -49,9 +51,7 @@ def get_image_list(key):
     """Load and return the list of images for a slideshow"""
     if key not in slideshows:
         try:
-            photos_file = key
-            if not photos_file.endswith('.txt'):
-                photos_file = key + '.txt'
+            photos_file = ensure_ext(key)
             if not os.path.exists(photos_file):
                 abort(404, description=f"Slideshow '{key}' not found")
             with open(photos_file, 'r') as f:

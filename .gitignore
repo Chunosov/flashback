@@ -208,4 +208,4 @@ __marimo__/
 
 # Application
 config.ini
-photos.txt
+*.lst

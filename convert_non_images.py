@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from utils import ensure_ext, DEF_EXT
+
 # Common video file extensions
 VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm'}
 
@@ -50,8 +52,8 @@ def process_file(file_path, base_frames_dir, upscale=False):
 
 def main():
     parser = argparse.ArgumentParser(description='Convert non-image files (videos) to frames')
-    parser.add_argument('input_file', nargs='?', default='non_photos.txt',
-                       help='Input file containing paths (default: non_photos.txt)')
+    parser.add_argument('input_file', nargs='?', default=f'non_photos.{DEF_EXT}',
+                       help=f'Input file containing paths (default: non_photos.{DEF_EXT})')
     parser.add_argument('-o', '--output-dir', required=True,
                        help='Base directory for output frames')
     parser.add_argument('-u', '--upscale', action='store_true',
@@ -60,12 +62,13 @@ def main():
     args = parser.parse_args()
     
     # Ensure input file exists
-    if not os.path.exists(args.input_file):
-        print(f"Error: Input file not found: {args.input_file}", file=sys.stderr)
+    input_file = ensure_ext(input_file)
+    if not os.path.exists(input_file):
+        print(f"Error: Input file not found: {input_file}", file=sys.stderr)
         sys.exit(1)
     
     # Process each line in the input file
-    with open(args.input_file, 'r') as f:
+    with open(input_file, 'r') as f:
         for line in f:
             file_path = line.strip()
             if file_path:  # Skip empty lines

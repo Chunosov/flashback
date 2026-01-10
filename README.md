@@ -35,32 +35,34 @@ On other systems:
 Prepare a list of files that will be displayed in slideshow:
 
 ```bash
-# Basic usage (outputs to photos.txt and photos-non.txt)
+# Basic usage (outputs to photos.lst)
 python prepare.py "/path/to/directory"
 
 # Specify custom output files
-python prepare.py "/path/to/directory" my_photos.txt --non-photos my_non_photos.txt
+# Unless specified, the ".lst" extension is added automatically 
+python prepare.py "/path/to/directory" my_photos --non-photos my_non_photos
 
-# Specify several input dirs via input text file
-# one directory per line, use # for comments to skip particular directories
-python prepare.py new_year_dirs.txt new_year.txt
+# Specify several input dirs via input file
+# Input file should contain one directory per line,
+# use # at the line start to skip particular directories
+python prepare.py new_year_dirs.lst new_year
 ```
 
 The script will:
 1. Recursively scan the directory for media files
-2. Save JPG files to `photos.txt` (or specified output)
-3. Save non-JPG media files (without JPG counterparts) to `photos-non.txt` (or specified output)
+2. Save JPG file paths to `photos.lst` (or specified output)
+3. Optionally save non-JPG media file paths (without JPG counterparts) to specified output
 
 ### Slideshow
 
 Display images from a prepared list file in a slideshow:
 
 ```bash
-# Basic usage (reads from photos.txt)
+# Basic usage (reads from photos.lst)
 python slideshow.py
 
 # Use custom image list file
-python slideshow.py my_photos.txt
+python slideshow.py my_photos.lst
 
 # Remote slideshow mode (fetch images from server)
 python slideshow.py my_album --server http://example.com
@@ -186,17 +188,17 @@ python video_to_frames.py video.mp4 -i 5 --upscale -o frames_directory
 Convert multiple video files to frames using a list file (supports .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm):
 
 ```bash
-# Process videos listed in non_photos.txt (default input file)
+# Process videos listed in non_photos.lst (default input file)
 python convert_non_images.py -o all_frames
 
 # Process videos from a custom list file
-python convert_non_images.py custom_list.txt -o frames_output
+python convert_non_images.py custom_list.lst -o frames_output
 
 # Enable upscaling for frames below FullHD resolution
 python convert_non_images.py -o all_frames --upscale
 
 # Process custom list with upscaling
-python convert_non_images.py custom_list.txt -o frames_output -u
+python convert_non_images.py custom_list.lst -o frames_output -u
 ```
 
 The script will:
