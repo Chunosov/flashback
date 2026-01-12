@@ -205,3 +205,41 @@ The script will:
 1. Read video paths from the input file
 2. Create subdirectories in the output directory matching source video locations
 3. Extract frames from each video using `video_to_frames.py`
+
+### EXIF Data Transfer
+
+Copy EXIF metadata from RAW NEF files to processed JPG images. This is useful when you've processed RAW photos (cropped, color-corrected, upscaled, etc.) and want to preserve the original camera shooting parameters.
+
+```bash
+# Basic usage - copy EXIF from RAW files to JPG files
+python copy_exif.py ./raw_photos ./processed_photos
+
+# Force overwrite existing EXIF data
+python copy_exif.py ./raw_photos ./processed_photos --force
+
+# Also copy file timestamps (creation and modification dates)
+python copy_exif.py ./raw_photos ./processed_photos --datetime
+
+# Combine all options
+python copy_exif.py ./raw_photos ./processed_photos --force --datetime
+```
+
+Features:
+- **Smart file matching**: Automatically matches JPG files with RAW files, even with suffixes
+  - `DSC_0707.NEF` → `DSC_0707.jpg`
+  - `DSC_0707.NEF` → `DSC_0707_edited.jpg`
+  - `DSC_0707.NEF` → `DSC_0707-enhanced.jpg`
+- **Whitelist-based copying**: Only copies photography-relevant EXIF tags (camera make/model, exposure settings, ISO, aperture, focal length, GPS, etc.)
+- **No recompression**: Preserves original JPG quality by inserting EXIF without recompressing
+- **Orientation handling**: Excludes orientation tag to prevent double-rotation issues
+- **Source tracking**: Adds comment field indicating the source RAW file name
+- **Error handling**: Reports files with existing EXIF, missing matches, or processing errors
+- **Timestamp sync**: Optional file timestamp copying to maintain chronological order
+
+Options:
+- `--force` or `-f`: Overwrite EXIF data even if JPG already contains EXIF
+- `--datetime` or `-d`: Copy file creation and modification timestamps from NEF to JPG
+
+The script processes only `.NEF` files and skips:
+- JPG files that already have EXIF data (unless `--force` is used)
+- NEF files without matching JPG counterparts
